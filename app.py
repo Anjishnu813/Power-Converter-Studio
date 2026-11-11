@@ -13,18 +13,31 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Ensure root directory is in sys.path
+# Ensure root directory and subdirectories are in sys.path
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-import importlib
-import automation.circuit_solver
-import automation.agent_graph
-importlib.reload(automation.circuit_solver)
-importlib.reload(automation.agent_graph)
-from automation.agent_graph import create_converter_agent_graph, AgentState
-from automation.circuit_solver import CircuitSolver
+for sub in ["automation", "Automation", "deploy_to_cloud", os.path.join("deploy_to_cloud", "automation")]:
+    sub_path = os.path.join(ROOT_DIR, sub)
+    if os.path.isdir(sub_path) and sub_path not in sys.path:
+        sys.path.insert(0, sub_path)
+
+try:
+    from automation.circuit_solver import CircuitSolver
+    from automation.agent_graph import create_converter_agent_graph, AgentState
+except (ImportError, ModuleNotFoundError):
+    try:
+        from Automation.circuit_solver import CircuitSolver
+        from Automation.agent_graph import create_converter_agent_graph, AgentState
+    except (ImportError, ModuleNotFoundError):
+        try:
+            from circuit_solver import CircuitSolver
+            from agent_graph import create_converter_agent_graph, AgentState
+        except (ImportError, ModuleNotFoundError) as e:
+            st.error(f"❌ Could not load circuit solver or agent graph: {e}")
+            st.info(f"Directory listing: {os.listdir(ROOT_DIR)}")
+            raise e
 
 # Page configuration
 st.set_page_config(
