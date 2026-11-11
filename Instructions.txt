@@ -1,0 +1,19 @@
+1. Read the prompt and figure out the specificities:
+	a)Type of Converter
+	b)Open-loop Control/ Closed-loop Control
+	c)Input/Output values
+	d)Switching Frequency
+2. Any value that isn't available from point 1 must have a default value according to the type of converter
+3. Search the example netlist corresponding to the prompt from the Circuit Library folder
+4. Calculate new parameters(Capacitance, Inductance, Resistance, Diode voltages, etc.) for that converter
+5. Create a new netlist based on that example with the new parameters. Make sure to add plot commands for separate waveform windows
+	a)Input and Output voltage
+	b)Inductor current
+	c)Control voltages(if available)
+6. Verify whether netlist is indeed complete for simulations, i.e all the values are available and that there are no syntax errors(include plot commands)
+7. Run a background simulation of the netlist on NgSpice program
+8. Check the output and the waveform. Make sure that the waveform is indeed how it should be for that converter(use previous example and internet knowledge to check that).
+	a) If this netlist is wrong, check the parameters and compare with the example to look for errors. Then start again from step 4. 
+	b) If this netlist is correct, move on. 
+	c) If this netlist has syntax errors, verify again and rectify the errors, start again from step 6.
+9. Run the simulation on screen, to show the result to the user. Finally provide the correct netlist on the interface.

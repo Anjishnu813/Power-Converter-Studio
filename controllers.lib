@@ -1,0 +1,65 @@
+* controllers.lib - Generalized Control Modules for SPICE
+* This library contains universal parameterized subcircuits for different control architectures.
+
+* -----------------------------------------------------------
+* PEAK CURRENT MODE CONTROLLER (PCMC)
+* -----------------------------------------------------------
+* Inputs: 
+*   v_out   : Sensed output voltage
+*   v_ref   : Reference voltage
+*   i_sense : Voltage signal proportional to inductor current (1V = 1A if RSENSE=1)
+* Outputs:
+*   pwm_out : Gate drive signal (0V or 1V)
+*   ctrl    : Internal PI control voltage (current setpoint)
+*   ramp    : Slope compensation ramp voltage
+* Parameters:
+*   KP      : Proportional gain (outer voltage loop)
+*   KI      : Integral gain (outer voltage loop)
+*   M_SLOPE : Slope compensation (V/s) to prevent sub-harmonic oscillation
+*   RSENSE  : Current sense gain (V/A)
+*   F_SW    : Switching frequency (Hz)
+* -----------------------------------------------------------
+.subckt PCMC_CONTROLLER v_out v_ref i_sense pwm_out ctrl ramp PARAMS: KP=0.01 KI=0.001 M_SLOPE=0 RSENSE=1 F_SW=100k
+
+* 1. Outer Voltage Loop (PI Controller)
+Eerr err 0 value = { v(v_ref) - v(v_out) }
+Bint 0 int_val I={ v(err) * KI }
+Cint int_val 0 100u IC=0.5
+Rint int_val 0 10MEG
+
+* Anti-windup for PI
+Dclamp1 int_val clamp_high D_ideal
+Dclamp2 clamp_low int_val D_ideal
+Vclamp_high clamp_high 0 DC 0.9
+Vclamp_low clamp_low 0 DC 0.01
+
+* Control Voltage (Current Command)
+Ectrl ctrl 0 value = { v(err) * KP + v(int_val) < 0.01 ? 0.01 : (v(err) * KP + v(int_val) > 0.9 ? 0.9 : v(err) * KP + v(int_val)) }
+
+* 2. Slope Compensation
+* Ramp from 0 to M_SLOPE/F_SW
+Vramp ramp 0 PULSE(0 {M_SLOPE/F_SW} 0 {0.99/F_SW} {0.01/F_SW} 0 {1/F_SW})
+E_vc_eff vc_eff 0 value = { v(ctrl) - v(ramp) }
+
+* 3. Inner Current Loop (Comparator)
+Ecomp comp 0 value = { v(i_sense) * RSENSE >= v(vc_eff) ? 1 : 0 }
+
+* 4. SR Latch for PWM
+* Clock sets the latch (turns switch ON) at the start of every cycle
+Vclk clk 0 PULSE(0 1 0 1n 1n {0.05/F_SW} {1/F_SW})
+
+* Analog latch implementation using controlled current sources and a 100pF capacitor
+* Reset dominates if comp goes high immediately
+B_set 0 state I = { (v(clk) > 0.5) * (v(comp) <= 0.5) }
+B_res state 0 I = { (v(comp) > 0.5) }
+C_state state 0 100p IC=0
+D1 state clamp_h D_ideal
+D2 clamp_l state D_ideal
+V_h clamp_h 0 DC 1
+V_l clamp_l 0 DC 0
+
+* 5. Output Buffer
+Epwm pwm_out 0 value = { v(state) > 0.5 ? 1 : 0 }
+
+.model D_ideal D(N=0.001 RS=0.001)
+.ends PCMC_CONTROLLER
